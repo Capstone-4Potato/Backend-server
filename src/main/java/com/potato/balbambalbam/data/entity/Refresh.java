@@ -8,7 +8,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Refresh {
-
     @Id
     @Column(name = "id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)

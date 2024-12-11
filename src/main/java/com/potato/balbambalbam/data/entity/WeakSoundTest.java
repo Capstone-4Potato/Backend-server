@@ -5,9 +5,8 @@ import lombok.Getter;
 
 @Entity
 @Getter
-@Table(name="weaksound_test")
+@Table(name = "weaksound_test")
 public class WeakSoundTest {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

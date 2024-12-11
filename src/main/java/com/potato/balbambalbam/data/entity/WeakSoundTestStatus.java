@@ -2,13 +2,12 @@ package com.potato.balbambalbam.data.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 @Entity(name = "weaksound_test_status")
 @Getter
-@Setter
+@NoArgsConstructor
 public class WeakSoundTestStatus {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -20,9 +19,5 @@ public class WeakSoundTestStatus {
     public WeakSoundTestStatus(Long userId, boolean testStatus) {
         this.userId = userId;
         this.testStatus = testStatus;
-    }
-
-    public WeakSoundTestStatus() {
-
     }
 }

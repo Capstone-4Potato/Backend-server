@@ -16,5 +16,4 @@ public class PronunciationPicture {
     private Long phonemeId;
     @Column(name = "explanation")
     private String explanation;
-
 }

@@ -10,10 +10,12 @@ import java.util.Optional;
 
 @Repository
 public interface CardWeakSoundRepository extends JpaRepository<CardWeakSound, CardWeakSoundId> {
-
     boolean existsByCardIdAndUserId(Long cardId, Long userId);
+
     Optional<CardWeakSound> findByCardId(Long cardId);
+
     @Transactional
     void deleteByUserId(Long userId);
+
     boolean existsByUserId(Long userId);
 }

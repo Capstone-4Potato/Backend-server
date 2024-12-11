@@ -1,0 +1,72 @@
+# 워크플로우 이름 설정
+name: Java CI with Gradle
+
+# 워크플로우 트리거 설정
+on:
+  push:
+    branches:
+      - "develop"
+
+# github action vm의 권한 read로 설정
+permissions:
+  contents: read
+
+# 작업 정의
+jobs:
+  # Docker 이미지 빌드 및 푸시 작업
+  build-docker-image:
+    runs-on: ubuntu-latest  # 최신 Ubuntu 러너에서 실행
+    steps:
+      # 1. 코드 체크아웃
+      - uses: actions/checkout@v3
+
+      # 2. JDK 21 설정
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # 3. Gradle을 사용하여 프로젝트 빌드
+      - name: Build with Gradle
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean build -x test
+
+      # 4. Docker 이미지 빌드
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_DEV_REPO }}:latest .
+
+      # 5. Docker Hub 로그인
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      # 6. Docker 이미지를 Docker Hub에 푸시
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_DEV_REPO }}:latest
+
+  # EC2에서 Docker 이미지 실행 작업
+  deploy-to-ec2:
+    needs: build-docker-image  # build-docker-image 작업이 완료된 후 실행
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEV_WAS_HOST }} #서버의 public 주소
+          username: ${{ secrets.DEV_WAS_USERNAME }} #접속할 사용자
+          key: ${{ secrets.DEV_WAS_KEY }} #SSH 키
+          port: ${{ secrets.DEV_WAS_SSH_PORT }}
+          script: |
+            cat ~/my_password.txt | docker login --username ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+            if [ "$(docker ps -qa)" ]; then
+              docker rm -f $(docker ps -qa)
+              docker rmi $(docker images -q)
+            else
+              echo "No containers to remove."
+            fi
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_DEV_REPO }}
+            docker run -d -p 8080:8080 --env-file /home/ubuntu/src/config/development.env --name app ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_DEV_REPO }}

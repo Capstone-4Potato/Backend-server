@@ -5,11 +5,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity(name = "custom_card")
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 public class CustomCard {
-
     @Id
     @Column(name = "id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,5 +28,6 @@ public class CustomCard {
     private Integer highestScore;
     @Column(name = "bookmark")
     private Boolean isBookmarked;
-
+    @Column(name = "time_stamp")
+    private LocalDateTime timeStamp;
 }

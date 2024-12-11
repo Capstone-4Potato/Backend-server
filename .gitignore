@@ -1,9 +1,4 @@
 HELP.md
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
 
 ### STS ###
 .apt_generated
@@ -16,6 +11,14 @@ build/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+/build/classes
+/build/reports
+/build/resources
+/build/test-results
+/build/generated
+/build/tmp
+resolvedMainClassName
+.gradle
 
 ### IntelliJ IDEA ###
 .idea
@@ -25,6 +28,7 @@ bin/
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
+application-dev.properties
 application-local.properties
 
 ### NetBeans ###
@@ -35,4 +39,4 @@ application-local.properties
 /.nb-gradle/
 
 ### VS Code ###
-.vscode/
+.DS_Store
