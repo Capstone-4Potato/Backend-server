@@ -19,7 +19,7 @@ public class BulkRepository {
     @PersistenceContext
     private EntityManager em;
 
-    public void saveAll(List<CardWeakSound> cardWeakSoundList) {
+    public void saveAll(List<CardWeakSound> cardWeakSoundList){
         String sql = "INSERT INTO card_weaksound (user_id, card_id) VALUES (?, ?)";
 
         jdbcTemplate.batchUpdate(sql,
@@ -33,7 +33,7 @@ public class BulkRepository {
         em.clear();
     }
 
-    public void deleteAllByUserId(Long userId) {
+    public void deleteAllByUserId(Long userId){
         String sql = "DELETE FROM card_weaksound WHERE user_id = ?";
 
         jdbcTemplate.update(sql, userId);
