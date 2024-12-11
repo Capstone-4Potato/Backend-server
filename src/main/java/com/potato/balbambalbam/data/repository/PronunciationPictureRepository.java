@@ -8,5 +8,6 @@ import java.util.Optional;
 
 @Repository
 public interface PronunciationPictureRepository extends JpaRepository<PronunciationPicture, Long> {
+
     Optional<PronunciationPicture> findByPhonemeId(Long phonemeId);
 }

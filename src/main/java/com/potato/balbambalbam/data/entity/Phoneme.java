@@ -5,9 +5,11 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.Getter;
 
+
 @Entity(name = "phoneme")
 @Getter
 public class Phoneme {
+
     @Id
     private Long id;
     @Column(name = "type", nullable = false)
