@@ -3,48 +3,69 @@ package com.potato.balbambalbam.card.cardFeedback.service;
 import com.potato.balbambalbam.card.cardFeedback.dto.AiFeedbackRequestDto;
 import com.potato.balbambalbam.card.cardFeedback.dto.AiFeedbackResponseDto;
 import com.potato.balbambalbam.exception.AiGenerationFailException;
+import com.potato.balbambalbam.exception.AiServerException;
 import com.potato.balbambalbam.exception.InvalidParameterException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 
-@Service
 @Slf4j
+@Service
+@RequiredArgsConstructor
 public class AiCardFeedbackService {
-    WebClient webClient = WebClient.builder()
-            .codecs(configurer -> configurer
-                    .defaultCodecs()
-                    .maxInMemorySize(5 * 1024 * 1024)) // 5MB
-            .build();
-    @Value("${ai.service.url}")
-    private String AI_URL;
 
+    private final WebClient aiWebClient;
+
+    private final Retry retryPolicy = Retry.backoff(2, Duration.ofMillis(200))
+            .maxBackoff(Duration.ofSeconds(1))
+            .jitter(0.3)
+            .filter(this::isRetryable);
+
+    @CircuitBreaker(name = "aiFeedback", fallbackMethod = "fallback")
     public AiFeedbackResponseDto postAiFeedback(AiFeedbackRequestDto aiFeedbackRequestDto) {
-
-        AiFeedbackResponseDto aiFeedbackResponseDto = webClient.post()
-                .uri(AI_URL + "/ai/feedback")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Mono.just(aiFeedbackRequestDto), AiFeedbackRequestDto.class)
+        return aiWebClient.post()
+                .uri("/ai/feedback")
+                .bodyValue(aiFeedbackRequestDto)
                 .retrieve()//요청
-                //에러 처리 : 요청이 잘못갔을 경우
-                .onStatus(HttpStatus.BAD_REQUEST::equals,
-                        response -> response.bodyToMono(String.class).map(InvalidParameterException::new))
-                //에러 처리 : 사용자 텍스트 추출 실패
-                .onStatus(HttpStatus.UNPROCESSABLE_ENTITY::equals,
-                        response -> response.bodyToMono(String.class).map(AiGenerationFailException::new))
-                //에러 처리 : 텍스트 분리 실패, 정확도 계산, 그래프 추출 실패
-                .onStatus(HttpStatus.INTERNAL_SERVER_ERROR::equals,
-                        response -> response.bodyToMono(String.class).map(AiGenerationFailException::new))
+                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                        this::mapError)
                 .bodyToMono(AiFeedbackResponseDto.class)
-                .timeout(Duration.ofSeconds(60)) //10초 안에 응답 오지 않으면 TimeoutException 발생
+                .retryWhen(retryPolicy)
+                .timeout(Duration.ofSeconds(15)) // 전체 시도(Retry 포함)에 대한 마지노선
                 .block();
-
-        return aiFeedbackResponseDto;
     }
+
+    private Mono<? extends Throwable> mapError(ClientResponse response) {
+        return response.bodyToMono(String.class)
+                .defaultIfEmpty("")
+                .map(body -> {
+                    int statusCode = response.statusCode().value();
+                    if (statusCode == 400) return new InvalidParameterException(body);
+                    if (statusCode == 422) return new AiGenerationFailException(body);
+                    if (statusCode >= 500) return new AiServerException(body);
+                    return new RuntimeException("AI error: " + statusCode + " body=" + body);
+                });
+    }
+
+    private boolean isRetryable(Throwable ex) {
+        return ex instanceof TimeoutException
+                || ex instanceof WebClientRequestException
+                || ex instanceof AiServerException
+                || ex.getCause() instanceof io.netty.handler.timeout.ReadTimeoutException;
+    }
+
+    private AiFeedbackResponseDto fallback(Throwable t) {
+        log.warn("AI circuit breaker OPEN - fallback executed", t);
+        throw new AiServerException("AI service temporarily unavailable");
+    }
+
 }
